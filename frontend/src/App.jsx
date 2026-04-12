@@ -40,7 +40,7 @@ function App() {
           <Activity size={32} color="var(--accent)" />
         </div>
         <div>
-          <h1>Air Quality AI</h1>
+          <h1>Air Quality Anomaly Detection</h1>
           <p style={{ marginTop: '0.25rem' }}>Isolation Forest Sensor Drift & Spike Detection</p>
         </div>
       </header>

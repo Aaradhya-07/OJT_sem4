@@ -1,6 +1,4 @@
-#!/bin/sh
-'''exec' "/home/aaradhya07/Desktop/OJT/Airquality anomaly detection/backend/.venv/bin/python3" "$0" "$@"
-' '''
+#!/home/aaradhya/Desktop/OJT_sem4/backend/.venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

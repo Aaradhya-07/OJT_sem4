@@ -58,16 +58,11 @@ export default function Dashboard({ data, onReset }) {
 
       {/* Main Charts */}
       <div className="grid grid-cols-2" style={{ marginBottom: '1.5rem' }}>
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--anomaly)' }} />
-            Anomaly Timeline (CO)
-          </h3>
+        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <TimelineChart data={results} />
         </div>
 
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <h3 style={{ marginBottom: '1rem' }}>CO vs NOx Density</h3>
+        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <AnomalyScatter normal={normalPoints} anomalies={anomalousPoints} />
         </div>
       </div>

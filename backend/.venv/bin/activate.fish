@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV '/home/aaradhya07/Desktop/OJT/Airquality anomaly detection/backend/.venv'
+set -gx VIRTUAL_ENV /home/aaradhya/Desktop/OJT_sem4/backend/.venv
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH

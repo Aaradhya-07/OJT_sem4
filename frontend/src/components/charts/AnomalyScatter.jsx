@@ -1,7 +1,18 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+const FEATURES = ["CO(GT)", "C6H6(GT)", "NOx(GT)", "NO2(GT)", "T", "RH", "AH"];
+
 export default function AnomalyScatter({ normal, anomalies }) {
+  const [featureX, setFeatureX] = useState("CO(GT)");
+  const [featureY, setFeatureY] = useState("NOx(GT)");
+
+  // To reduce congestion, we can downsample normal points and tweak styling
+  const downsampledNormal = useMemo(() => {
+    // Only take 1 in 4 normal points to space it out
+    return normal.filter((_, i) => i % 4 === 0);
+  }, [normal]);
+
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -19,11 +30,11 @@ export default function AnomalyScatter({ normal, anomalies }) {
           </div>
           <div style={{ fontSize: '0.85rem' }}>
             <div style={{ marginBottom: '0.25rem' }}><strong>Date:</strong> {new Date(data.datetime).toLocaleString()}</div>
-            <div style={{ marginBottom: '0.25rem' }}><strong>CO(GT):</strong> {data['CO(GT)']} mg/m³</div>
-            <div><strong>NOx(GT):</strong> {data['NOx(GT)']} ppb</div>
+            <div style={{ marginBottom: '0.25rem' }}><strong>{featureX}:</strong> {data[featureX]}</div>
+            <div><strong>{featureY}:</strong> {data[featureY]}</div>
             {data.is_anomaly === 1 && (
               <div style={{ marginTop: '0.25rem', color: '#ff8099' }}>
-                <strong>Score:</strong> {data.anomaly_score.toFixed(3)}
+                <strong>Score:</strong> {data.anomaly_score?.toFixed(3)}
               </div>
             )}
           </div>
@@ -32,52 +43,76 @@ export default function AnomalyScatter({ normal, anomalies }) {
     }
     return null;
   };
-
-  // Recharts handles thousands of points poorly if unoptimized, but Scatter is quite fast.
-  // We'll map the data to simple arrays.
   
   return (
-    <div style={{ height: '350px', width: '100%' }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <ScatterChart
-          margin={{ top: 20, right: 20, bottom: 20, left: 10 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-          <XAxis 
-            type="number" 
-            dataKey="CO(GT)" 
-            name="CO(GT)" 
-            stroke="var(--text-muted)"
-            tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
-            domain={['auto', 'auto']}
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h3 style={{ margin: 0 }}>Feature Density Scatter</h3>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>X:</span>
+          <select 
+            value={featureX} 
+            onChange={(e) => setFeatureX(e.target.value)}
+            style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)', outline: 'none' }}
           >
-            <title>CO (mg/m³)</title>
-          </XAxis>
-          <YAxis 
-            type="number" 
-            dataKey="NOx(GT)" 
-            name="NOx(GT)" 
-            stroke="var(--text-muted)"
-            tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
-          />
-          <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ paddingTop: '20px' }}/>
-          <Scatter 
-            name="Normal" 
-            data={normal} 
-            fill="#3a86ff" 
-            opacity={0.3}
-            shape="circle"
-          />
-          <Scatter 
-            name="Anomaly" 
-            data={anomalies} 
-            fill="var(--anomaly)"
-            opacity={0.9} 
-            shape="cross"
-          />
-        </ScatterChart>
-      </ResponsiveContainer>
-    </div>
+            {FEATURES.map(f => (
+              <option key={`x-${f}`} value={f} style={{ color: 'black' }}>{f}</option>
+            ))}
+          </select>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>Y:</span>
+          <select 
+            value={featureY} 
+            onChange={(e) => setFeatureY(e.target.value)}
+            style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)', outline: 'none' }}
+          >
+            {FEATURES.map(f => (
+              <option key={`y-${f}`} value={f} style={{ color: 'black' }}>{f}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div style={{ height: '350px', width: '100%' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart
+            margin={{ top: 20, right: 20, bottom: 20, left: 10 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <XAxis 
+              type="number" 
+              dataKey={featureX} 
+              name={featureX} 
+              stroke="var(--text-muted)"
+              tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+              domain={['auto', 'auto']}
+            />
+            <YAxis 
+              type="number" 
+              dataKey={featureY} 
+              name={featureY} 
+              stroke="var(--text-muted)"
+              tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+              domain={['auto', 'auto']}
+            />
+            <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ paddingTop: '20px' }}/>
+            <Scatter 
+              name="Normal (Sampled)" 
+              data={downsampledNormal} 
+              fill="#3a86ff" 
+              opacity={0.15}
+              line={false}
+              shape="circle"
+            />
+            <Scatter 
+              name="Anomaly" 
+              data={anomalies} 
+              fill="var(--anomaly)"
+              opacity={0.8} 
+              shape="cross"
+            />
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+    </>
   );
 }
