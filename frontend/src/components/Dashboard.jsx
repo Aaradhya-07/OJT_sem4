@@ -4,6 +4,7 @@ import AnomalyScatter from './charts/AnomalyScatter';
 import TimelineChart from './charts/TimelineChart';
 import FeatureComparison from './charts/FeatureComparison';
 import AnomalyTable from './AnomalyTable';
+import AIInsightsPanel from './AIInsightsPanel';
 
 export default function Dashboard({ data, onReset }) {
   if (!data) return null;
@@ -78,6 +79,8 @@ export default function Dashboard({ data, onReset }) {
           <AnomalyTable anomalies={anomalousPoints} />
         </div>
       </div>
+
+      <AIInsightsPanel data={data} />
     </div>
   );
 }

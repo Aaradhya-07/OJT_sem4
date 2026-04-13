@@ -40,3 +40,29 @@ class AnalyzeResponse(BaseModel):
     anomaly_pct: float
     date_range: Optional[List[str]]  # [min_date, max_date] as ISO strings
     results: List[dict]
+
+
+# ---------------------------------------------------------------------------
+# Gemini AI Insight schemas
+# ---------------------------------------------------------------------------
+class CriticalEvent(BaseModel):
+    datetime: str
+    co: float
+    nox: float
+    score: float
+
+class FeatureStat(BaseModel):
+    sensor: str
+    normal_mean: float
+    anomaly_mean: float
+    ratio: float
+
+class InsightRequest(BaseModel):
+    total_records: int
+    anomaly_count: int
+    anomaly_pct: float
+    date_range: str
+    selected_time_window: str
+    top_critical_events: List[CriticalEvent]
+    feature_comparison: List[FeatureStat]
+    most_anomalous_sensor: str

@@ -9,8 +9,8 @@ export default function AnomalyScatter({ normal, anomalies }) {
 
   // To reduce congestion, we can downsample normal points and tweak styling
   const downsampledNormal = useMemo(() => {
-    // Only take 1 in 4 normal points to space it out
-    return normal.filter((_, i) => i % 4 === 0);
+    // Take 1 in 10 normal points to space it out and improve performance
+    return normal.filter((_, i) => i % 10 === 0);
   }, [normal]);
 
   const CustomTooltip = ({ active, payload }) => {
@@ -102,6 +102,7 @@ export default function AnomalyScatter({ normal, anomalies }) {
               opacity={0.15}
               line={false}
               shape="circle"
+              isAnimationActive={false}
             />
             <Scatter 
               name="Anomaly" 
@@ -109,6 +110,7 @@ export default function AnomalyScatter({ normal, anomalies }) {
               fill="var(--anomaly)"
               opacity={0.8} 
               shape="cross"
+              isAnimationActive={false}
             />
           </ScatterChart>
         </ResponsiveContainer>

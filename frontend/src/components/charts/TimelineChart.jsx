@@ -126,6 +126,7 @@ export default function TimelineChart({ data }) {
               dataKey="anomaly_val" 
               fill="var(--anomaly)" 
               r={4}
+              isAnimationActive={false}
             />
           </ComposedChart>
         </ResponsiveContainer>

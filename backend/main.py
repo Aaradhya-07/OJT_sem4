@@ -10,13 +10,24 @@ Endpoints:
 import json
 import traceback
 
+import os
+import google.generativeai as genai
+import google.api_core.exceptions
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from database import Base, Run, engine, get_db
 from ml import preprocess_csv, run_isolation_forest
-from models import AnalyzeResponse, RunDetail, RunSummary
+from models import AnalyzeResponse, RunDetail, RunSummary, InsightRequest
+
+# Configure Gemini
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -162,3 +173,81 @@ def get_run(run_id: int, db: Session = Depends(get_db)):
         contamination=run.contamination,
         results=results,
     )
+
+
+# ---------------------------------------------------------------------------
+# POST /insight
+# ---------------------------------------------------------------------------
+@app.post("/insight")
+async def generate_insight(req: InsightRequest):
+    """Generate AI insights based on the analysis results using Gemini."""
+    
+    # Reload dotenv in case it changed
+    load_dotenv()
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY environment variable not set")
+        
+    genai.configure(api_key=api_key)
+    
+    # Format sensor insights
+    sensor_details = ""
+    for stat in req.feature_comparison:
+        sensor_details += f"- SENSOR {stat.sensor}: normal avg = {stat.normal_mean:.2f}, anomaly avg = {stat.anomaly_mean:.2f} ({stat.ratio:.2f}x higher)\n"
+    
+    # Format top events
+    events_details = ""
+    for ev in req.top_critical_events[:3]:
+        events_details += f"- {ev.datetime}: CO={ev.co}, NOx={ev.nox}, Score={ev.score:.3f}\n"
+
+    prompt = f"""You are an air quality data analyst. A user has run anomaly detection 
+on an urban air quality dataset. Here are the results:
+
+Dataset: {req.total_records} hourly readings from {req.date_range}.
+Anomalies detected: {req.anomaly_count} ({req.anomaly_pct}%) using Isolation Forest.
+Time window currently viewed: {req.selected_time_window}.
+
+Sensor behavior during anomalies vs normal readings:
+{sensor_details}
+
+Top 3 most critical events (lowest anomaly scores):
+{events_details}
+
+Based on this data, provide:
+1. A 2-sentence plain-English summary of what the anomalies represent 
+   (high pollution events, sensor faults, weather patterns, etc.)
+2. Which sensors are the primary drivers of anomalies and why that matters
+3. The time periods of highest concern and what may have caused them 
+   (traffic, industrial activity, seasonal patterns)
+4. One actionable recommendation for what a city environmental officer 
+   should do with this information
+
+Be specific, cite the actual numbers from the data, and keep the total 
+response under 250 words. Do not use excessive bullet points — write 
+in short readable paragraphs."""
+
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        response = model.generate_content(prompt, stream=True)
+        
+        async def event_generator():
+            try:
+                for chunk in response:
+                    if chunk.text:
+                        yield chunk.text
+            except Exception as e:
+                yield f"\n\n[Error streaming response: {str(e)}]"
+                        
+        return StreamingResponse(event_generator(), media_type="text/plain")
+        
+    except google.api_core.exceptions.ResourceExhausted as e:
+        import re
+        retry_delay = 60
+        m = re.search(r'in (\d+)s', str(e))
+        if m:
+            retry_delay = int(m.group(1))
+        raise HTTPException(status_code=429, detail={"message": str(e), "retry_delay": retry_delay})
+    except Exception as e:
+        if "429" in str(e) or getattr(e, "code", None) == 429:
+            raise HTTPException(status_code=429, detail={"message": str(e), "retry_delay": 60})
+        raise HTTPException(status_code=500, detail=f"Failed to communicate with Gemini API: {str(e)}")
