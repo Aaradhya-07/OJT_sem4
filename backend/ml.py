@@ -61,6 +61,10 @@ def preprocess_csv(file_bytes: bytes) -> pd.DataFrame:
             na_values="",
             on_bad_lines="skip",
         )
+        if any(c not in df.columns for c in FEATURE_COLS):
+            df_comma = pd.read_csv(io.BytesIO(file_bytes), on_bad_lines="skip")
+            if all(c in df_comma.columns for c in FEATURE_COLS):
+                df = df_comma
     except Exception:
         # Fallback: comma-separated
         df = pd.read_csv(io.BytesIO(file_bytes), on_bad_lines="skip")
