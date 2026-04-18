@@ -20,6 +20,7 @@ load_dotenv()
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from typing import Union
 from sqlalchemy.orm import Session
 
 from database import Base, Run, engine, get_db
@@ -57,20 +58,25 @@ Base.metadata.create_all(bind=engine)
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(
     file: UploadFile = File(...),
-    contamination: float = Form(0.05),
+    contamination: Union[str, float] = Form("auto"),
     db: Session = Depends(get_db),
 ):
     """Upload a CSV file and run Isolation Forest anomaly detection.
 
     - **file**: UCI Air Quality CSV (semicolon-delimited, European decimals).
-    - **contamination**: Expected anomaly fraction (0.01 – 0.50, default 0.05).
+    - **contamination**: Expected anomaly fraction (0.01 – 0.50, default or "auto").
     """
     # ---- Validate contamination ----
-    if not (0.001 <= contamination <= 0.50):
-        raise HTTPException(
-            status_code=422,
-            detail="contamination must be between 0.001 and 0.50",
-        )
+    if contamination != "auto":
+        try:
+            contamination = float(contamination)
+            if not (0.001 <= contamination <= 0.50):
+                raise ValueError()
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail="contamination must be 'auto' or a float between 0.001 and 0.50",
+            )
 
     # ---- Read uploaded bytes ----
     try:

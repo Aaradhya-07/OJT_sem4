@@ -32,7 +32,7 @@ class Run(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     filename = Column(String, nullable=False)
     run_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    contamination = Column(Float, nullable=False)
+    contamination = Column(String, nullable=False)
     results_json = Column(Text, nullable=False)  # JSON string of scored rows
 
 

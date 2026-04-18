@@ -4,7 +4,7 @@ import { UploadCloud, File, AlertTriangle } from 'lucide-react';
 export default function UploadSection({ onUpload, loading, error }) {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState(null);
-  const [contamination, setContamination] = useState(0.05);
+  const contamination = "auto";
   const inputRef = useRef(null);
 
   const handleDrag = (e) => {
@@ -114,24 +114,6 @@ export default function UploadSection({ onUpload, loading, error }) {
           </button>
         )}
 
-        <div style={{ textAlign: 'left', marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>
-            Contamination Rate: <span style={{ color: 'var(--accent)' }}>{(contamination * 100).toFixed(1)}%</span>
-            <span style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 400, marginTop: '0.25rem' }}>
-              The expected proportion of anomalies in the dataset.
-            </span>
-          </label>
-          <input 
-            type="range" 
-            min="0.01" 
-            max="0.2" 
-            step="0.01" 
-            value={contamination} 
-            onChange={(e) => setContamination(parseFloat(e.target.value))}
-            style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
-            disabled={loading}
-          />
-        </div>
       </div>
 
       {error && (

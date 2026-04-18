@@ -3,7 +3,7 @@ Pydantic schemas for API request/response serialization.
 """
 
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
 from pydantic import BaseModel
 
@@ -17,7 +17,7 @@ class RunSummary(BaseModel):
     id: int
     filename: str
     run_at: datetime
-    contamination: float
+    contamination: Union[str, float]
 
     class Config:
         from_attributes = True
@@ -34,7 +34,7 @@ class AnalyzeResponse(BaseModel):
 
     run_id: int
     filename: str
-    contamination: float
+    contamination: Union[str, float]
     total_records: int
     anomalies_found: int
     anomaly_pct: float

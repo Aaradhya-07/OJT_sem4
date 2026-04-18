@@ -114,9 +114,11 @@ def preprocess_csv(file_bytes: bytes) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Isolation Forest Pipeline (matches reference notebook)
 # ---------------------------------------------------------------------------
+from typing import Union
+
 def run_isolation_forest(
     df: pd.DataFrame,
-    contamination: float = 0.05,
+    contamination: Union[float, str] = "auto",
 ) -> Tuple[pd.DataFrame, dict]:
     """Run Isolation Forest on the preprocessed data.
 
