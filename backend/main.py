@@ -140,6 +140,7 @@ async def analyze(
         anomalies_found=summary["anomalies_found"],
         anomaly_pct=summary["anomaly_pct"],
         date_range=summary["date_range"],
+        score_distribution=summary.get("score_distribution"),
         results=results,
     )
 
@@ -179,6 +180,199 @@ def get_run(run_id: int, db: Session = Depends(get_db)):
         contamination=run.contamination,
         results=results,
     )
+
+
+# ---------------------------------------------------------------------------
+# NEW DASHBOARD ENDPOINTS
+# ---------------------------------------------------------------------------
+import pandas as pd
+from datetime import datetime, timedelta
+
+def get_run_results_df(db: Session, run_id: int = None):
+    query = db.query(Run)
+    if run_id:
+        run = query.filter(Run.id == run_id).first()
+    else:
+        run = query.order_by(Run.run_at.desc()).first()
+        
+    if not run:
+        raise HTTPException(status_code=404, detail="No analysis run found.")
+        
+    results = json.loads(run.results_json)
+    df = pd.DataFrame(results)
+    if "datetime" in df.columns:
+        df["datetime"] = pd.to_datetime(df["datetime"])
+    return run, df
+
+
+@app.get("/anomaly-context")
+def get_anomaly_context(timestamp: str, window_hours: int = 3, run_id: int = None, db: Session = Depends(get_db)):
+    """Returns sliced sensor data +/- window_hours around a given timestamp."""
+    _, df = get_run_results_df(db, run_id)
+    
+    ts = pd.to_datetime(timestamp)
+    start_time = ts - timedelta(hours=window_hours)
+    end_time = ts + timedelta(hours=window_hours)
+    
+    # Filter by time window
+    sliced = df[(df["datetime"] >= start_time) & (df["datetime"] <= end_time)].copy()
+    
+    # We also need to compute 24h rolling mean for the specific timestamp
+    dev_start = ts - timedelta(hours=24)
+    past_24h = df[(df["datetime"] >= dev_start) & (df["datetime"] <= ts)]
+    means = past_24h.mean(numeric_only=True)
+    
+    # Get exact row at timestamp
+    exact_row = df[df["datetime"] == ts]
+    if exact_row.empty:
+        raise HTTPException(status_code=404, detail="Timestamp not found in data.")
+        
+    exact_row = exact_row.iloc[0]
+    
+    # Build comparison table data for all sensors
+    # Features are specifically the ones with zscores
+    features = [c.replace("_zscore", "") for c in df.columns if c.endswith("_zscore")]
+    
+    comparisons = []
+    for f in features:
+        curr_val = float(exact_row[f]) if pd.notna(exact_row[f]) else 0.0
+        rolling_mean = float(means[f]) if f in means and pd.notna(means[f]) else 0.0
+        comparisons.append({
+            "sensor": f,
+            "value": curr_val,
+            "mean_24h": rolling_mean,
+            "deviation": curr_val - rolling_mean
+        })
+        
+    # Serialize datetime for JSON
+    sliced["datetime"] = sliced["datetime"].dt.strftime("%Y-%m-%dT%H:%M:%S")
+    
+    return {
+        "chart_data": sliced.to_dict(orient="records"),
+        "comparison_table": comparisons
+    }
+
+@app.get("/heatmap-data")
+def get_heatmap_data(run_id: int = None, db: Session = Depends(get_db)):
+    """Returns aggregated anomaly counts and worst scores per day/hour."""
+    _, df = get_run_results_df(db, run_id)
+    
+    if "datetime" not in df.columns:
+        return []
+        
+    df["date"] = df["datetime"].dt.strftime("%Y-%m-%d")
+    df["hour"] = df["datetime"].dt.hour
+    
+    grouped = df.groupby(["date", "hour"]).agg(
+        anomaly_count=("is_anomaly", "sum"),
+        worst_score=("anomaly_score", "min")
+    ).reset_index()
+    
+    return grouped.to_dict(orient="records")
+
+@app.post("/rerun-analysis")
+def rerun_analysis(run_id: int, contamination: float, db: Session = Depends(get_db)):
+    """Re-runs Isolation Forest on a past run with a new contamination threshold."""
+    # Note: Because the DB only stores `results_json`, we must parse it, 
+    # extract original features, and re-run.
+    run = db.query(Run).filter(Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found.")
+        
+    df = pd.DataFrame(json.loads(run.results_json))
+    if "datetime" in df.columns:
+        df["datetime"] = pd.to_datetime(df["datetime"])
+        
+    from ml import FEATURE_COLS
+    # Keep only relevant columns to avoid passing anomalies
+    keep_cols = FEATURE_COLS + ["datetime"]
+    df_clean = df[[c for c in keep_cols if c in df.columns]].copy()
+    
+    try:
+        from ml import run_isolation_forest
+        scored_df, summary = run_isolation_forest(df_clean, contamination=contamination)
+    except Exception as e:
+        import traceback
+        raise HTTPException(
+            status_code=500,
+            detail=f"Model scoring failed: {traceback.format_exc(limit=2)}",
+        )
+        
+    # Serialize datetime
+    for col in scored_df.select_dtypes(include=["datetime64[ns]", "datetimetz"]).columns:
+        scored_df[col] = scored_df[col].dt.strftime("%Y-%m-%dT%H:%M:%S")
+
+    results = scored_df.to_dict(orient="records")
+    
+    # Update DB
+    run.contamination = contamination
+    run.results_json = json.dumps(results, default=str)
+    db.commit()
+    
+    # Format distribution
+    dist = summary.get("score_distribution")
+    
+    return {
+        "run_id": run.id,
+        "anomalies_found": summary["anomalies_found"],
+        "anomaly_pct": summary["anomaly_pct"],
+        "score_distribution": dist,
+        "results": results,
+    }
+
+@app.get("/sensor-health")
+def get_sensor_health(run_id: int = None, db: Session = Depends(get_db)):
+    """Returns anomaly rates and worst value per sensor feature."""
+    _, df = get_run_results_df(db, run_id)
+    
+    # For each anomaly, assign it to the sensor with the highest absolute z-score
+    features = [c.replace("_zscore", "") for c in df.columns if c.endswith("_zscore")]
+    z_cols = [f"{f}_zscore" for f in features]
+    
+    anomalies_idx = df["is_anomaly"] == 1
+    df_anom = df[anomalies_idx]
+    
+    sensor_stats = []
+    
+    if len(df_anom) > 0:
+        # Find dominant feature per anomaly
+        # Using abs() because extreme negative or positive are both anomalies
+        dominant_idx = df_anom[z_cols].abs().idxmax(axis=1)
+        # Count occurrences of each feature name (stripping '_zscore')
+        dominant_counts = dominant_idx.apply(lambda x: x.replace("_zscore", "")).value_counts()
+    else:
+        dominant_counts = pd.Series(dtype=int)
+        
+    total_readings = len(df)
+    if total_readings == 0:
+        total_readings = 1 # Avoid division by zero
+        
+    for feature in features:
+        # Number of anomalies where this feature was the primary contributor
+        Feature_anomalies = int(dominant_counts.get(feature, 0))
+        anomaly_rate = (Feature_anomalies / total_readings) * 100
+        
+        # Calculate worst value: value at the instance with the most extreme z-score
+        if len(df) > 0:
+            max_z_idx = df[f"{feature}_zscore"].abs().idxmax()
+            worst_value = float(df.loc[max_z_idx, feature])
+        else:
+            worst_value = 0.0
+            
+        status = "emerald" # < 5%
+        if anomaly_rate >= 15:
+            status = "rose"
+        elif anomaly_rate >= 5:
+            status = "amber"
+            
+        sensor_stats.append({
+            "sensor": feature,
+            "anomaly_rate": round(anomaly_rate, 2),
+            "status": status,
+            "worst_value": round(worst_value, 2)
+        })
+        
+    return sensor_stats
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +428,11 @@ in short readable paragraphs."""
 
     try:
         model = genai.GenerativeModel('gemini-2.5-flash')
-        response = model.generate_content(prompt, stream=True)
+        response = model.generate_content(
+            prompt, 
+            stream=True, 
+            request_options={"retry": None}
+        )
         
         async def event_generator():
             try:

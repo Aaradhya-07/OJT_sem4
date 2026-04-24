@@ -20,21 +20,21 @@ export default function FeatureComparison({ normal, anomalies }) {
     }));
   }, [normal, anomalies]);
 
-  const CustomTooltip = ({ active, payload, label }) => {
+  const renderTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
         <div style={{
-          background: 'rgba(10, 10, 15, 0.95)',
-          border: '1px solid var(--glass-border)',
+          background: 'var(--tooltip-bg)',
+          border: '1px solid var(--card-border)',
           padding: '1rem',
           borderRadius: '8px',
-          color: '#fff',
+          color: 'var(--text-primary)',
         }}>
-          <div style={{ marginBottom: '0.5rem', fontWeight: 600, borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.25rem' }}>
+          <div style={{ marginBottom: '0.5rem', fontWeight: 600, borderBottom: '1px solid var(--card-border)', paddingBottom: '0.25rem' }}>
             Feature: {label}
           </div>
-          <div style={{ color: '#3a86ff', marginBottom: '0.25rem' }}>Normal Mean: {payload[0].value.toFixed(2)}</div>
-          <div style={{ color: 'var(--anomaly)' }}>Anomaly Mean: {payload[1].value.toFixed(2)}</div>
+          <div style={{ color: 'var(--accent)', marginBottom: '0.25rem' }}>Normal Mean: {payload[0].value.toFixed(2)}</div>
+          <div style={{ color: 'var(--anomaly-critical)' }}>Anomaly Mean: {payload[1].value.toFixed(2)}</div>
         </div>
       );
     }
@@ -48,20 +48,20 @@ export default function FeatureComparison({ normal, anomalies }) {
           data={chartData}
           margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
           <XAxis 
             dataKey="name" 
-            stroke="var(--text-muted)"
-            tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+            stroke="var(--text-secondary)"
+            tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
           />
           <YAxis 
-            stroke="var(--text-muted)"
-            tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+            stroke="var(--text-secondary)"
+            tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
           />
-          <Tooltip cursor={{ fill: 'rgba(255,255,255,0.02)' }} content={<CustomTooltip />} />
+          <Tooltip cursor={{ fill: 'var(--card-border)' }} content={renderTooltip} />
           <Legend wrapperStyle={{ paddingTop: '10px' }} />
-          <Bar dataKey="Normal" fill="#3a86ff" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="Anomaly" fill="var(--anomaly)" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="Normal" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="Anomaly" fill="var(--anomaly-critical)" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -13,19 +13,19 @@ export default function AnomalyScatter({ normal, anomalies }) {
     return normal.filter((_, i) => i % 10 === 0);
   }, [normal]);
 
-  const CustomTooltip = ({ active, payload }) => {
+  const renderTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
         <div style={{
-          background: 'rgba(10, 10, 15, 0.9)',
-          border: `1px solid ${data.is_anomaly === 1 ? 'var(--anomaly)' : 'var(--glass-border)'}`,
+          background: 'var(--tooltip-bg)',
+          border: `1px solid ${data.is_anomaly === 1 ? 'var(--anomaly-critical)' : 'var(--card-border)'}`,
           padding: '1rem',
           borderRadius: '8px',
-          color: '#fff',
+          color: 'var(--text-primary)',
           boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
         }}>
-          <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: data.is_anomaly === 1 ? 'var(--anomaly)' : 'var(--accent)' }}>
+          <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: data.is_anomaly === 1 ? 'var(--anomaly-critical)' : 'var(--accent)' }}>
             {data.is_anomaly === 1 ? '⚠️ Anomaly Detected' : '✅ Normal Reading'}
           </div>
           <div style={{ fontSize: '0.85rem' }}>
@@ -33,7 +33,7 @@ export default function AnomalyScatter({ normal, anomalies }) {
             <div style={{ marginBottom: '0.25rem' }}><strong>{featureX}:</strong> {data[featureX]}</div>
             <div><strong>{featureY}:</strong> {data[featureY]}</div>
             {data.is_anomaly === 1 && (
-              <div style={{ marginTop: '0.25rem', color: '#ff8099' }}>
+              <div style={{ marginTop: '0.25rem', color: 'var(--anomaly-critical)' }}>
                 <strong>Score:</strong> {data.anomaly_score?.toFixed(3)}
               </div>
             )}
@@ -47,23 +47,23 @@ export default function AnomalyScatter({ normal, anomalies }) {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h3 style={{ margin: 0 }}>Feature Density Scatter</h3>
+        <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>Feature Density Scatter</h3>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>X:</span>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>X:</span>
           <select 
             value={featureX} 
             onChange={(e) => setFeatureX(e.target.value)}
-            style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)', outline: 'none' }}
+            style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', background: 'var(--page-bg)', color: 'var(--text-primary)', border: '1px solid var(--card-border)', outline: 'none' }}
           >
             {FEATURES.map(f => (
               <option key={`x-${f}`} value={f} style={{ color: 'black' }}>{f}</option>
             ))}
           </select>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>Y:</span>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>Y:</span>
           <select 
             value={featureY} 
             onChange={(e) => setFeatureY(e.target.value)}
-            style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)', outline: 'none' }}
+            style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', background: 'var(--page-bg)', color: 'var(--text-primary)', border: '1px solid var(--card-border)', outline: 'none' }}
           >
             {FEATURES.map(f => (
               <option key={`y-${f}`} value={f} style={{ color: 'black' }}>{f}</option>
@@ -76,29 +76,29 @@ export default function AnomalyScatter({ normal, anomalies }) {
           <ScatterChart
             margin={{ top: 20, right: 20, bottom: 20, left: 10 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
             <XAxis 
               type="number" 
               dataKey={featureX} 
               name={featureX} 
-              stroke="var(--text-muted)"
-              tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+              stroke="var(--text-secondary)"
+              tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
               domain={['auto', 'auto']}
             />
             <YAxis 
               type="number" 
               dataKey={featureY} 
               name={featureY} 
-              stroke="var(--text-muted)"
-              tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+              stroke="var(--text-secondary)"
+              tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
               domain={['auto', 'auto']}
             />
-            <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />} />
+            <Tooltip cursor={{ strokeDasharray: '3 3' }} content={renderTooltip} />
             <Legend wrapperStyle={{ paddingTop: '20px' }}/>
             <Scatter 
               name="Normal (Sampled)" 
               data={downsampledNormal} 
-              fill="#3a86ff" 
+              fill="var(--accent)" 
               opacity={0.15}
               line={false}
               shape="circle"
@@ -107,7 +107,7 @@ export default function AnomalyScatter({ normal, anomalies }) {
             <Scatter 
               name="Anomaly" 
               data={anomalies} 
-              fill="var(--anomaly)"
+              fill="var(--anomaly-critical)"
               opacity={0.8} 
               shape="cross"
               isAnimationActive={false}

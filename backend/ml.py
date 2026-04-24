@@ -154,6 +154,26 @@ def run_isolation_forest(
     result_df["is_anomaly"] = (predictions == -1).astype(int)   # 1 = anomaly, 0 = normal
     result_df["anomaly_score"] = scores
 
+    # Add z-scores
+    for i, col in enumerate(FEATURE_COLS):
+        result_df[f"{col}_zscore"] = X_scaled[:, i]
+
+    # Add severity tier
+    def get_tier(score, is_anom):
+        if not is_anom:
+            return "Normal"
+        if score < -0.20:
+            return "Critical"
+        elif score <= -0.10:
+            return "Moderate"
+        elif score <= -0.05:
+            return "Minor"
+        else:
+            # Fallback if anomaly but small negative score
+            return "Minor"
+            
+    result_df["severity_tier"] = result_df.apply(lambda row: get_tier(row["anomaly_score"], row["is_anomaly"]), axis=1)
+
     # ---- Summary ----
     total = len(result_df)
     anomalies = int(result_df["is_anomaly"].sum())
@@ -164,11 +184,17 @@ def run_isolation_forest(
             result_df["datetime"].max().isoformat(),
         ]
 
+    # Calculate score distribution
+    hist, bin_edges = np.histogram(scores, bins=40)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    score_distribution = [{"score": round(float(cen), 3), "count": int(cnt)} for cen, cnt in zip(bin_centers, hist)]
+
     summary = {
         "total_records": total,
         "anomalies_found": anomalies,
         "anomaly_pct": round(anomalies / total * 100, 2) if total > 0 else 0.0,
         "date_range": date_range,
+        "score_distribution": score_distribution,
     }
 
     return result_df, summary

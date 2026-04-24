@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ComposedChart, Line, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import AnomalyDrillDown from '../AnomalyDrillDown';
+import InfoTooltip from '../InfoTooltip';
 
 const FEATURES = ["CO(GT)", "C6H6(GT)", "NOx(GT)", "NO2(GT)", "T", "RH", "AH"];
 const TIME_PERIODS = [
@@ -8,9 +10,41 @@ const TIME_PERIODS = [
   { label: 'All Time', value: Infinity }
 ];
 
-export default function TimelineChart({ data }) {
+const CustomAnomalyShape = (props) => {
+  const { cx, cy, payload } = props;
+  const tier = payload.severity_tier;
+  
+  if (cx == null || cy == null) return null;
+  
+  if (tier === "Critical") {
+    return (
+      <circle 
+        cx={cx} 
+        cy={cy} 
+        r={6} 
+        fill="var(--anomaly-critical)" 
+        style={{ filter: 'drop-shadow(0px 0px 4px var(--anomaly-critical))', cursor: 'pointer' }} 
+      />
+    );
+  } else if (tier === "Moderate") {
+    return <circle cx={cx} cy={cy} r={4} fill="var(--anomaly-moderate)" style={{ cursor: 'pointer' }} />;
+  } else {
+    // Minor - diamond
+    const size = 8;
+    return (
+      <polygon 
+        points={`${cx},${cy - size/2} ${cx + size/2},${cy} ${cx},${cy + size/2} ${cx - size/2},${cy}`} 
+        fill="var(--anomaly-minor)" 
+        style={{ cursor: 'pointer' }}
+      />
+    );
+  }
+};
+
+export default function TimelineChart({ data, runId }) {
   const [selectedFeature, setSelectedFeature] = useState("CO(GT)");
   const [timePeriodDays, setTimePeriodDays] = useState(90);
+  const [selectedTimestamp, setSelectedTimestamp] = useState(null);
 
   const formattedData = useMemo(() => {
     if (!data || data.length === 0) return [];
@@ -39,25 +73,19 @@ export default function TimelineChart({ data }) {
     }));
   }, [data, selectedFeature, timePeriodDays]);
 
-  const CustomTooltip = ({ active, payload }) => {
+  const renderTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const pData = payload[0].payload;
       return (
-        <div style={{
-          background: 'rgba(10, 10, 15, 0.9)',
-          border: `1px solid ${pData.is_anomaly === 1 ? 'var(--anomaly)' : 'var(--glass-border)'}`,
-          padding: '1rem',
-          borderRadius: '8px',
-          color: '#fff',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
-        }}>
-          <div style={{ color: 'var(--text-muted)', marginBottom: '0.25rem', fontSize: '0.85rem' }}>
+        <div className="bg-tooltip border border-card-border p-3 rounded-lg text-text-primary shadow-xl text-sm z-50">
+          <div className="text-text-secondary mb-1 text-xs">
             {new Date(pData.datetime).toLocaleString()}
           </div>
-          <div style={{ fontWeight: 600 }}>{selectedFeature}: {pData[selectedFeature]}</div>
+          <div className="font-semibold text-accent">{selectedFeature}: {pData[selectedFeature]}</div>
           {pData.is_anomaly === 1 && (
-            <div style={{ marginTop: '0.25rem', color: 'var(--anomaly)', fontSize: '0.85rem' }}>
-              Anomaly Score: {pData.anomaly_score.toFixed(3)}
+            <div className="mt-2 pt-2 border-t border-card-border text-xs">
+              <div className="text-critical">Score: {pData.anomaly_score.toFixed(3)}</div>
+              <div className="text-text-secondary mt-1">Tier: <span className="font-medium text-text-primary">{pData.severity_tier}</span></div>
             </div>
           )}
         </div>
@@ -68,69 +96,78 @@ export default function TimelineChart({ data }) {
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--anomaly)' }} />
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="flex items-center gap-2 m-0 text-lg font-semibold text-text-primary">
           Anomaly Timeline
+          <InfoTooltip text="Line chart displaying normal data versus isolated anomalies over time dynamically toggled per-dataset. Outliers trigger Drill-Down inspection overlays." />
         </h3>
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div className="flex gap-4">
           <select 
             value={selectedFeature} 
             onChange={(e) => setSelectedFeature(e.target.value)}
-            style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)' }}
+            className="px-2 py-1.5 rounded-md bg-page-bg border border-card-border text-text-primary text-sm focus:outline-none focus:border-accent"
           >
             {FEATURES.map(f => (
-              <option key={f} value={f} style={{ color: 'black' }}>{f}</option>
+              <option key={f} value={f}>{f}</option>
             ))}
           </select>
           <select 
             value={timePeriodDays} 
             onChange={(e) => setTimePeriodDays(Number(e.target.value))}
-            style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)' }}
+            className="px-2 py-1.5 rounded-md bg-page-bg border border-card-border text-text-primary text-sm focus:outline-none focus:border-accent"
           >
             {TIME_PERIODS.map(tp => (
-              <option key={tp.label} value={tp.value} style={{ color: 'black' }}>{tp.label}</option>
+              <option key={tp.label} value={tp.value}>{tp.label}</option>
             ))}
           </select>
         </div>
       </div>
-      <div style={{ height: '350px', width: '100%' }}>
+      
+      <div className="h-[350px] w-full mt-2">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={formattedData}
-            margin={{ top: 20, right: 20, bottom: 20, left: 10 }}
+            margin={{ top: 10, right: 10, bottom: 0, left: -10 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
             <XAxis 
               dataKey="datetime_label" 
-              stroke="var(--text-muted)"
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+              stroke="var(--text-secondary)"
+              tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
               minTickGap={50}
             />
             <YAxis 
-              stroke="var(--text-muted)"
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+              stroke="var(--text-secondary)"
+              tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
               domain={['auto', 'auto']}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={renderTooltip} />
             <Line 
               type="monotone" 
               dataKey="normal_val" 
-              stroke="#3a86ff" 
-              strokeWidth={1} 
+              stroke="var(--accent)" 
+              strokeWidth={1.5} 
               dot={false}
-              activeDot={{ r: 4 }}
+              activeDot={{ r: 4, fill: "var(--accent)", stroke: "none" }}
               isAnimationActive={false}
             />
             <Scatter 
               dataKey="anomaly_val" 
-              fill="var(--anomaly)" 
-              r={4}
+              shape={<CustomAnomalyShape />} 
               isAnimationActive={false}
+              onClick={(d) => d && d.datetime && setSelectedTimestamp(d.datetime)}
             />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+
+      {selectedTimestamp && (
+        <AnomalyDrillDown 
+          runId={runId} 
+          timestamp={selectedTimestamp} 
+          onClose={() => setSelectedTimestamp(null)} 
+        />
+      )}
     </>
   );
 }

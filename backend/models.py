@@ -39,7 +39,28 @@ class AnalyzeResponse(BaseModel):
     anomalies_found: int
     anomaly_pct: float
     date_range: Optional[List[str]]  # [min_date, max_date] as ISO strings
+    score_distribution: Optional[List[dict]] = None
     results: List[dict]
+
+
+# ---------------------------------------------------------------------------
+# New Feature Response schemas
+# ---------------------------------------------------------------------------
+class HeatmapCell(BaseModel):
+    date: str
+    hour: int
+    anomaly_count: int
+    worst_score: float
+
+class RerunRequest(BaseModel):
+    run_id: int
+    contamination: float
+
+class SensorHealth(BaseModel):
+    sensor: str
+    anomaly_rate: float
+    status: str
+    worst_value: float
 
 
 # ---------------------------------------------------------------------------
