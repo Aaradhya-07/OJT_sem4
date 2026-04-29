@@ -9,7 +9,8 @@ export default function Heatmap({ runId }) {
 
   useEffect(() => {
     if (!runId) return;
-    axios.get(`http://localhost:8000/heatmap-data?run_id=${runId}`)
+    const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+    axios.get(`${API_URL}/heatmap-data?run_id=${runId}`)
       .then(res => setData(res.data))
       .catch(console.error);
   }, [runId]);

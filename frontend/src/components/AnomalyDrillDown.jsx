@@ -12,7 +12,8 @@ export default function AnomalyDrillDown({ runId, timestamp, onClose }) {
   useEffect(() => {
     if (!runId || !timestamp) return;
     setLoading(true);
-    axios.get(`http://localhost:8000/anomaly-context?run_id=${runId}&timestamp=${timestamp}&window_hours=3`)
+    const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+    axios.get(`${API_URL}/anomaly-context?run_id=${runId}&timestamp=${timestamp}&window_hours=3`)
       .then(res => setData(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));

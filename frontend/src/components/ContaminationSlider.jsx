@@ -16,7 +16,8 @@ export default function ContaminationSlider({ runId, initialContamination, distr
     if (!runId) return;
     setLoading(true);
     try {
-      const res = await axios.post(`http://localhost:8000/rerun-analysis?run_id=${runId}&contamination=${val}`);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const res = await axios.post(`${API_URL}/rerun-analysis?run_id=${runId}&contamination=${val}`);
       onRecalculate(res.data);
     } catch (err) {
       console.error(err);

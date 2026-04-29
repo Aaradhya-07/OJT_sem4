@@ -8,7 +8,8 @@ export default function SensorHealth({ runId }) {
 
   useEffect(() => {
     if (!runId) return;
-    axios.get(`http://localhost:8000/sensor-health?run_id=${runId}`)
+    const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+    axios.get(`${API_URL}/sensor-health?run_id=${runId}`)
       .then(res => setData(res.data))
       .catch(console.error);
   }, [runId]);

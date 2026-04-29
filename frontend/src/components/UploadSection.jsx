@@ -57,7 +57,13 @@ export default function UploadSection({ onUpload, loading, error }) {
             <UploadCloud size={48} className={dragActive ? 'text-accent' : 'text-text-secondary'} />
           </div>
           <h2 className="text-2xl font-bold text-text-primary mb-2">Upload Sensor Data</h2>
-          <p className="text-text-secondary">Drag and drop the UCI Air Quality CSV file here or click to browse.</p>
+          <p className="text-text-secondary mb-4">Drag and drop the UCI Air Quality CSV file here or click to browse.</p>
+          <div className="bg-warning/10 border border-warning rounded-lg p-3 text-sm text-warning inline-flex items-start gap-2 max-w-md mx-auto text-left">
+            <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" />
+            <div>
+              <strong>Note:</strong> The backend is deployed on a free tier service and may have a cold start. The first analysis might take up to 50 seconds or fail. Please be patient and retry if it fails.
+            </div>
+          </div>
         </div>
 
         <input 

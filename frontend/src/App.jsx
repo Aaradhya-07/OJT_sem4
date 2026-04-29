@@ -19,7 +19,8 @@ function App() {
     formData.append('contamination', contamination);
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/analyze', formData, {
+      const API_URL = import.meta.env.VITE_API_URL || 'https://ojt-sem4.onrender.com';
+      const response = await axios.post(`${API_URL}/analyze`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
